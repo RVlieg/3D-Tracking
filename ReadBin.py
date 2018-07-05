@@ -15,15 +15,11 @@ from tkinter import filedialog
 import array
 import struct
 
-#%% Get the Filename
-root = tk.Tk()
-root.withdraw()
-
-filename = filedialog.askopenfilename()
-#filename = filename.replace('/','\\')
 
 
 #%% Open the File 
+
+
 f = open(filename, 'rb')
 data = np.fromfile(f, dtype = np.uint16)
 nz = np.int(len(data)/(400*400))
