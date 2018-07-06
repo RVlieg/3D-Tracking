@@ -11,13 +11,10 @@ from tkinter import filedialog
 
 #%% Change Extension of a String
 def ChangeExtension(path_file, extension):
-    path_old = path_file
-    
-    extension_index = str.find(path_old, '.')
-    
+    path_old = path_file    
+    extension_index = str.find(path_old, '.')    
     if str.find(extension,'.') != 0:
-        extension = '.' + extension
-        
+        extension = '.' + extension        
     path_new = path_old[0:extension_index] + extension
 
     return path_new
@@ -62,7 +59,66 @@ def create_3D_mask(size_x,size_y,size_z,amp,sigma):
     
     return mask_xyz
 
+#%% Get ROI from stack 
 
+def get_ROI_from_stack(filepath,stack,peak_coordinates,mask):
+    
+    # Get file parameters     
+    logfile = file_io.read_logfile(filepath)
+
+    ypix = np.uint(str.split(logfile[8],' ')[3])
+    xpix = np.uint(str.split(logfile[9],' ')[3])
+    zsteps = logfile[18]
+    zsteps = str.split(zsteps," ")[3]
+    zsteps = np.uint(str.split(zsteps,",")[0])   
+    peak_coords=peak_coordinates
+    size_x,size_y,size_z=mask.shape
+    x_range = np.int16([peak_coords[0]-np.floor(size_x/2),peak_coords[0]+np.floor(size_x/2)])
+    y_range = np.int16([peak_coords[1]-np.floor(size_y/2),peak_coords[1]+np.floor(size_y/2)])
+    z_range = np.int16([peak_coords[2]-np.floor(size_z/2),peak_coords[2]+np.floor(size_z/2)])
+    
+    mask_bounds = np.int16([np.floor(size_x/2),np.floor(size_y/2), np.floor(size_z/2)])
+    
+    mask_temp = mask
+    
+    # X-coordinates too small:
+    if  peak_coords[0] < mask_bounds[0]:
+        x_range = np.int16([0,peak_coords[0]+np.floor(size_x/2)])
+        mask_temp = mask_temp[mask_bounds[0]-peak_coords[0]::,:,:]
+     
+    # X-coordinates too large:
+    if peak_coords[0] + mask_bounds[0] >= xpix:
+        x_range = np.int16([peak_coords[0]-np.floor(size_x/2),xpix])
+        ind_cut = ((x_range[0])+size_x)-xpix
+        mask_temp = mask_temp[0:(size_x-ind_cut),:,:]
+    
+    # Y-coordinates too small:
+    if peak_coords[1] < mask_bounds[1]:
+        y_range = np.int16([0,peak_coords[1]+np.floor(size_y/2)])
+        mask_temp = mask_temp[:,mask_bounds[1]-peak_coords[1]::,:]
+        
+    # Y-coordinates too large:             
+    if peak_coords[1] + mask_bounds[1] >= ypix:
+        y_range = np.int16([peak_coords[1]-np.floor(size_y/2),ypix])
+        ind_cut = ((y_range[0])+size_y)-ypix
+        mask_temp = mask_temp[:,0:(size_y-ind_cut),:]
+        
+    # Z-coordinates too small:          
+    if peak_coords[2] < mask_bounds[2]:
+        z_range = np.int16([0,peak_coords[2]+np.floor(size_z/2)])
+        mask_temp = mask_temp[:,:,mask_bounds[2]-peak_coords[2]::]
+        
+    # Z-coordinates too large:
+    if peak_coords[2] + mask_bounds[2] >= zsteps:
+        z_range = np.int16([peak_coords[2]-np.floor(size_z/2),zsteps])
+        ind_cut = ((z_range[0])+size_z)-zsteps
+        mask_temp = mask_temp[:,:,0:(size_z-ind_cut)]
+        
+    ROI_stack = stack[x_range[0]:x_range[1]+1,y_range[0]:y_range[1]+1,z_range[0]:z_range[1]+1]
+    
+    return ROI_stack
+    
+    
 #%% Get Trace Coordinates (X,Y,Z) from a stack
     
 def Get_Traces_3D(filepath,stack,threshold_factor,mask_size):
