@@ -115,8 +115,9 @@ def get_ROI_from_stack(filepath,stack,peak_coordinates,mask):
         mask_temp = mask_temp[:,:,0:(size_z-ind_cut)]
         
     ROI_stack = stack[x_range[0]:x_range[1]+1,y_range[0]:y_range[1]+1,z_range[0]:z_range[1]+1]
+    mask_size = np.shape(mask_temp)
     
-    return ROI_stack
+    return ROI_stack, mask_size
     
     
 #%% Get Trace Coordinates (X,Y,Z) from a stack

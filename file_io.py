@@ -45,8 +45,8 @@ def read_bin(path_binfile,slice_nr):
 
     return im_slice
 
-#%% Read Specified Stack from .bin file 
 
+#%% Read Specified Stack from .bin file 
 def get_stack(filepath,stack_nr):
     logfile= read_logfile(filepath)
     
