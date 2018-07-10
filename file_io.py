@@ -36,9 +36,9 @@ def read_bin(path_binfile,slice_nr):
     
     if slice_nr!=0:
        f.seek(slice_nr*pix_slice*2,0)
-       im_slice = np.fromfile(f, count = pix_slice, dtype = np.uint16)
+       im_slice = np.fromfile(f, count = pix_slice, dtype = '>i2')
     else:
-       im_slice = np.fromfile(f, count = pix_slice, dtype = np.uint16)  
+       im_slice = np.fromfile(f, count = pix_slice, dtype = '>i2')  
         
     f.close()
     im_slice = np.reshape(im_slice,[ypix,xpix],'F')
