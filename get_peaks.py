@@ -74,8 +74,8 @@ for stack_nr in range(0,len(global_coords[0,0,:])):
     # Read one stack from .bin file 
     stack = file_io.get_stack(filepath,stack_nr)    
     
-    for trace_nr in range(0,len(global_coords[:,0,0])):
-        
+    #for trace_nr in range(0,len(global_coords[:,0,0])):
+    for trace_nr in range(0,1):    
         # Get ROI
         peak_coords = global_coords[trace_nr,:,stack_nr]
         ROI_stack,mask_size = func.get_ROI_from_stack(filepath,stack,peak_coords,mask)
@@ -105,11 +105,10 @@ for stack_nr in range(0,len(global_coords[0,0,:])):
         # p0 is the initial guess for the fitting coefficients
         p0 = [in_A, in_C, in_x0, in_y0, in_z0, in_wx, in_wy, in_wz]
         
-        coeff, var_matrix = curve_fit(gauss_3D, xyz, data, p0=p0,bounds=bounds)
-        coeff = list(coeff)
+        coeff, var_matrix = curve_fit(gauss_3D, xyz, data, p0=p0,bounds=bounds, absolute_sigma=True)
         perr = np.sqrt(np.diag(var_matrix))
         
-        fit_params_stack[trace_nr,:]=coeff   
+        fit_params_stack[trace_nr,:]=coeff
         fit_errors_stack[stack_nr,:]=perr
         mask_size_stack[trace_nr,:] = mask_size
         
