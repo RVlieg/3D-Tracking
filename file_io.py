@@ -56,7 +56,7 @@ def get_stack(filepath,stack_nr):
     zsteps = str.split(zsteps," ")[3]
     zsteps = np.uint(str.split(zsteps,",")[0])
     stack=np.zeros([xpix,ypix,zsteps], dtype = np.uint16)
-    
+        
     for slice_nr in range(stack_nr*zsteps,stack_nr*zsteps + zsteps):
         stack[:,:,slice_nr-stack_nr*zsteps]=read_bin(filepath,slice_nr)
     
