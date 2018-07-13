@@ -122,7 +122,7 @@ def get_ROI_from_stack(filepath,stack,peak_coordinates,mask):
     
 #%% Get Trace Coordinates (X,Y,Z) from a stack
     
-def Get_Traces_3D(filepath,stack,threshold_factor,mask_size):
+def Get_Traces_3D(filepath,stack,threshold_factor,mask_size,max_num_peaks):
         
     # Get file parameters     
     logfile = file_io.read_logfile(filepath)
@@ -139,13 +139,17 @@ def Get_Traces_3D(filepath,stack,threshold_factor,mask_size):
     mask = create_3D_mask(size_x, size_y, size_z,10,10)
     
     # Find maximum intensity indeces
+    
     threshold = np.median(stack)*threshold_factor
     max_intensity=np.max(stack)
     masked_stack = stack
     peak_coordinates = np.array([], dtype=np.uint16)
     num_peaks = 0
     
-    while max_intensity > threshold:
+    if not max_num_peaks:
+        max_num_peaks = np.inf
+    
+    while max_intensity > threshold and num_peaks <= max_num_peaks:
     
         peak_coords = np.unravel_index(np.argmax(masked_stack), np.shape(masked_stack))
         max_intensity = masked_stack[peak_coords]
@@ -206,7 +210,7 @@ def Get_Traces_3D(filepath,stack,threshold_factor,mask_size):
     
 #%% Get the global coordinates of traces from a 3D stack of images 
     
-def get_global_coords(filepath, threshold_factor, mask_size):
+def get_global_coords(filepath, threshold_factor, mask_size,max_num_peaks):
     # Get file parameters 
     logfile = file_io.read_logfile(filepath)
     
@@ -232,7 +236,7 @@ def get_global_coords(filepath, threshold_factor, mask_size):
             stack[:,:,slice_nr-stack_nr*zsteps]=file_io.read_bin(filepath,slice_nr)
             
         # Get Peak coordinates from stack
-        [peak_coordinates_stack, num_trace] = Get_Traces_3D(filepath,stack,threshold_factor,mask_size)
+        [peak_coordinates_stack, num_trace] = Get_Traces_3D(filepath,stack,threshold_factor,mask_size,max_num_peaks)
         peak_coordinates = np.append(peak_coordinates,peak_coordinates_stack)
         num_traces[stack_nr]=num_trace
         
@@ -264,6 +268,8 @@ def gauss_3D(xyz, *p):
     
 def get_local_coords(filepath,global_coords,mask_size):
 
+
+
     # Get Measurement Parameters 
     logfile = file_io.read_logfile(filepath)
     zsteps = logfile[18]
@@ -277,7 +283,7 @@ def get_local_coords(filepath,global_coords,mask_size):
     mask = create_3D_mask(size_x,size_y,size_z,10,10)
     
     # Define Bounds
-    max_bounds=(65536,65536,size_x,size_y,size_z,size_x,size_y,size_z)
+    max_bounds=(65536,65536,size_x,size_y,size_z,size_x-1,size_y-1,size_z-1)
     min_bounds=(0,0,0,0,0,0,0,0)
     bounds = (min_bounds,max_bounds)
 
@@ -332,14 +338,14 @@ def get_local_coords(filepath,global_coords,mask_size):
             # p0 is the initial guess for the fitting coefficients
             p0 = [in_A, in_C, in_x0, in_y0, in_z0, in_wx, in_wy, in_wz]
             
-            try:
-                coeff, var_matrix = curve_fit(gauss_3D, xyz, data, p0=p0,bounds=bounds, absolute_sigma=True)
-                perr = np.sqrt(np.diag(var_matrix))
+            #try:
+            coeff, var_matrix = curve_fit(gauss_3D, xyz, data, p0=p0,bounds=bounds, absolute_sigma=True)
+            perr = np.sqrt(np.diag(var_matrix))
                 
-            except RuntimeError:
-                print('Error - curve_fit fialed')
-                coeff = np.empty(len(p0))                
-                perr  = np.empty(len(p0))
+         #   except RuntimeError:
+           #     print('Error - curve_fit failed')
+           #     coeff = np.empty(len(p0))                
+           #     perr  = np.empty(len(p0))
                 
             fit_params_stack[trace_nr,:]=coeff
             fit_errors_stack[trace_nr,:]=perr
