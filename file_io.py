@@ -27,8 +27,8 @@ def read_bin(path_binfile,slice_nr):
     data_log = read_logfile(path_logfile)
     
     # Get 2D dimensions image from log file 
-    ypix = np.uint(str.split(data_log[8],' ')[3])
-    xpix = np.uint(str.split(data_log[9],' ')[3])
+    ypix = np.uint(str.split(data_log[8],'=')[1])
+    xpix = np.uint(str.split(data_log[9],'=')[1])
     pix_slice = ypix*xpix
     
     # Open file and read data of 1 slice
@@ -50,10 +50,10 @@ def read_bin(path_binfile,slice_nr):
 def get_stack(filepath,stack_nr):
     logfile= read_logfile(filepath)
     
-    ypix   = np.uint(str.split(logfile[8],' ')[3])
-    xpix   = np.uint(str.split(logfile[9],' ')[3])
+    ypix   = np.uint(str.split(logfile[8],'=')[1])
+    xpix   = np.uint(str.split(logfile[9],'=')[1])
     zsteps = logfile[18]
-    zsteps = str.split(zsteps," ")[3]
+    zsteps = str.split(zsteps,"=")[1]
     zsteps = np.uint(str.split(zsteps,",")[0])
     stack=np.zeros([xpix,ypix,zsteps], dtype = np.uint16)
         

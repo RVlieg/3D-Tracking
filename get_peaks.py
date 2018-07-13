@@ -14,17 +14,18 @@ from mpl_toolkits.mplot3d import Axes3D
 
 #%% Build Stack from 2D slices 
 #Get file path 
-filepath = 'C:\Measurement Data\\180618 - PSF GNRs & DOE Pattern\\data_007.bin'
+filepath = 'C:\\Measurement Data\\180712 - Non_fluorescent_fish_w_lips_and_Lips_on_glass\\data_007.bin'
 
 
 #%% Get Global Peak Coordinates from the entire range of stacks in the file 
-threshold = 2        #Threshold = threshold*median_stack
+threshold = 1.5        #Threshold = threshold*median_stack
 mask_size = [11,11,23]   #XYZ in pix 
 
-global_coords = func.get_global_coords(filepath,threshold,mask_size)
+global_coords, num_traces = func.get_global_coords(filepath,threshold,mask_size)
+print(num_traces)
 
 #%% Get Local Peak Coordinates by Fitting 3D Gaussian
-mask_size = [11,11,11]
+mask_size = [11,11,17]
 local_coords, fit_params, fit_errors = func.get_local_coords(filepath,global_coords,mask_size)
 
 #%% Get RMS from coordinate position
@@ -37,7 +38,7 @@ x_loc = np.ndarray.flatten(x_loc)*260
 y_loc = np.ndarray.flatten(y_loc)*260
 z_loc = np.ndarray.flatten(z_loc)*250
 
-fig = plt.figure(1)
+fig = plt.figure(1) 
 ax = fig.gca(projection='3d')
 ax.scatter(x_loc,y_loc,z_loc,zdir='z')
 plt.axis([25,225,25,225])
@@ -60,16 +61,3 @@ plt.hist(fit_err_z,50,[0,10])
 
 plt.xlabel('Fit Error [nm]')
 
-
-#%%
-
-logfile = file_io.read_logfile(filepath)
-
-ypix   = np.uint(str.split(logfile[8],' ')[3])
-xpix   = np.uint(str.split(logfile[9],' ')[3])
-
-zsteps = logfile[18]
-zsteps = str.split(zsteps," ")[3]
-zsteps = np.uint(str.split(zsteps,",")[0])
-nframes= np.uint(str.split(logfile[7],' ')[2])
-nstacks= int(nframes/zsteps)
