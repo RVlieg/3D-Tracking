@@ -19,7 +19,7 @@ def read_logfile(path_logfile):
         
     return log
 
-# Read 16-bit .bin file as 2D image 
+#%% Read 16-bit .bin file as 2D image 
 def read_bin(path_binfile,slice_nr):
     path_binfile = func.ChangeExtension(path_binfile,'.bin')
     

@@ -31,6 +31,22 @@ def get_path():
 
     return filename 
 
+
+#%% Get max value in array with corresponding indices
+def get_max(array):
+    indices = np.unravel_index(np.argmax(array), np.shape(array))
+    max_intensity = array[indices]
+    indices = np.int16(indices)    
+    return max_intensity, indices
+    
+    
+#%% Get min value in array with corresponding indices
+def get_min(array):
+    indices = np.unravel_index(np.argmin(array), np.shape(array))
+    max_intensity = array[indices]
+    indices = np.int16(indices)
+    return max_intensity, indices
+    
     
 #%% Get Peaks from Stack 
 def create_3D_mask(size_x,size_y,size_z,amp,sigma):
@@ -62,7 +78,7 @@ def create_3D_mask(size_x,size_y,size_z,amp,sigma):
 
 #%% Get ROI from stack 
 
-def get_ROI_from_stack(filepath,stack,peak_coordinates,mask):
+def get_ROI_from_stack(filepath,stack,peak_coords,mask):
     
     # Get file parameters     
     logfile = file_io.read_logfile(filepath)
@@ -72,8 +88,8 @@ def get_ROI_from_stack(filepath,stack,peak_coordinates,mask):
     zsteps = logfile[18]
     zsteps = str.split(zsteps,"=")[1]
     zsteps = np.uint(str.split(zsteps,",")[0])   
-    peak_coords=peak_coordinates
     size_x,size_y,size_z=mask.shape
+    
     x_range = np.int16([peak_coords[0]-np.floor(size_x/2),peak_coords[0]+np.floor(size_x/2)])
     y_range = np.int16([peak_coords[1]-np.floor(size_y/2),peak_coords[1]+np.floor(size_y/2)])
     z_range = np.int16([peak_coords[2]-np.floor(size_z/2),peak_coords[2]+np.floor(size_z/2)])
@@ -146,7 +162,7 @@ def Get_Traces_3D(filepath,stack,threshold_factor,mask_size,max_num_peaks):
     peak_coordinates = np.array([], dtype=np.uint16)
     num_peaks = 0
     
-    if not max_num_peaks:
+    if not max_num_peaks or max_num_peaks is 0:
         max_num_peaks = np.inf
     
     while max_intensity > threshold and num_peaks <= max_num_peaks:
@@ -205,7 +221,7 @@ def Get_Traces_3D(filepath,stack,threshold_factor,mask_size,max_num_peaks):
     peak_coordinates = np.reshape(peak_coordinates,[3,int(len(peak_coordinates)/3)],1)
     peak_coordinates = np.transpose(peak_coordinates)
     
-    return peak_coordinates, num_peaks 
+    return peak_coordinates, num_peaks
     
     
 #%% Get the global coordinates of traces from a 3D stack of images 
@@ -221,15 +237,14 @@ def get_global_coords(filepath, threshold_factor, mask_size,max_num_peaks):
     zsteps = np.uint(str.split(zsteps,",")[0])
     nframes= np.uint(str.split(logfile[7],'=')[1])
     nstacks= int(nframes/zsteps)
-
-        
+    
     # Get Peak coordinates from all stacks 
     stack=np.zeros([xpix,ypix,zsteps], dtype = np.uint16)
+    num_traces_pstack=np.empty(nstacks, dtype = np.uint16)
+    peak_coordinates = list(range(0,nstacks))
     
-    num_traces=np.empty(nstacks, dtype = np.uint16)
-    peak_coordinates = np.array([], dtype = np.uint16)
-    
-    
+    threshold_factor=1.8
+    mask_size = [11,11,17]
     for stack_nr in range(0,nstacks):
         # Read stack from file     
         for slice_nr in range(stack_nr*zsteps,stack_nr*zsteps + zsteps):
@@ -237,24 +252,14 @@ def get_global_coords(filepath, threshold_factor, mask_size,max_num_peaks):
             
         # Get Peak coordinates from stack
         [peak_coordinates_stack, num_trace] = Get_Traces_3D(filepath,stack,threshold_factor,mask_size,max_num_peaks)
-        peak_coordinates = np.append(peak_coordinates,peak_coordinates_stack)
-        num_traces[stack_nr]=num_trace
-        
-    # Order the found peak coordinates in 3D array 
-    max_ntraces = int(max(num_traces))
+        peak_coordinates[stack_nr] = peak_coordinates_stack
+        num_traces_pstack[stack_nr]=num_trace
     
-    peak_coordinates_global = np.zeros([max_ntraces,3,nstacks], dtype = np.int16)
-    peak_coordinates = np.reshape(peak_coordinates,[3,int(len(peak_coordinates)/3)],1)
-    peak_coordinates = np.transpose(peak_coordinates)
+    return peak_coordinates, num_traces_pstack
     
-    for stack_nr in range(0,nstacks):
-        peaks_1slice = peak_coordinates[0:num_traces[stack_nr],:]
-        peak_coordinates_global[0:len(peaks_1slice),:,stack_nr]=peaks_1slice
-        peak_coordinates=peak_coordinates[0:num_traces[stack_nr],:]
-        
-    return peak_coordinates_global, max_ntraces
     
 #%% Model function to be used to fit to the data:
+    
 def gauss_3D(xyz, *p):
     xx,yy,zz = xyz[0],xyz[1],xyz[2]
     A,C,x0,y0,z0,wx,wy,wz = p
@@ -267,8 +272,6 @@ def gauss_3D(xyz, *p):
 #%% Get Local Coordinates by fitting 3D Gaussian to location from Global Coordinates
     
 def get_local_coords(filepath,global_coords,mask_size):
-
-
 
     # Get Measurement Parameters 
     logfile = file_io.read_logfile(filepath)
@@ -287,32 +290,30 @@ def get_local_coords(filepath,global_coords,mask_size):
     min_bounds=(0,0,0,0,0,0,0,0)
     bounds = (min_bounds,max_bounds)
 
-    
 ### Fit ROI to a 3D Gauss 
-        
+      
     # Allocate memory for all fit parameters and errors 
-    num_peaks = len(global_coords[:,0,0])
-    num_stacks= len(global_coords[0,0,:])
+    num_stacks= len(global_coords)    
+    fit_params_all, mask_size_all, fit_errors_all = [list(range(0,num_stacks)),list(range(0,num_stacks)),list(range(0,num_stacks))]
     
-    fit_params_all = np.empty([num_peaks,len(max_bounds),num_stacks])
-    mask_size_all  = np.empty([num_peaks,3,num_stacks])
-    fit_errors_all = np.empty([num_peaks,len(max_bounds),num_stacks])
-    
-    for stack_nr in range(0,len(global_coords[0,0,:])):
-            
-        # Allocate memory for fit parameters for 1 stack 
-        fit_params_stack = np.empty([len(global_coords[:,0,0]),len(max_bounds)])
-        fit_errors_stack = np.empty([len(global_coords[:,0,0]),len(max_bounds)])
-        mask_size_stack  = np.empty([len(global_coords[:,0,0]),3])
+    for stack_nr in range(0,num_stacks):
         
         # Read one stack from .bin file 
-        stack = file_io.get_stack(filepath,stack_nr)    
+        stack = file_io.get_stack(filepath,stack_nr)
+        global_coords_stack = global_coords[stack_nr]
         
-        for trace_nr in range(0,len(global_coords[:,0,0])):
+        # Allocate memory for fit parameters for 1 stack 
+        coords_stack = global_coords[stack_nr]
+        fit_params_stack = np.empty([len(coords_stack[:,0]),len(max_bounds)])
+        fit_errors_stack = np.empty([len(coords_stack[:,0]),len(max_bounds)])
+        mask_size_stack  = np.empty([len(coords_stack[:,0]),3])
+           
+        for trace_nr in range(0,len(global_coords_stack)):
+            
             # Get ROI
-            peak_coords = global_coords[trace_nr,:,stack_nr]
+            peak_coords = global_coords_stack[trace_nr,:]
             ROI_stack,mask_size = get_ROI_from_stack(filepath,stack,peak_coords,mask)
-                
+            
             ##### Fit Data 
             # Get ROI-data from the stack
             data = np.ndarray.flatten(ROI_stack)
@@ -335,38 +336,40 @@ def get_local_coords(filepath,global_coords,mask_size):
             in_wy = 1.5
             in_wz = 3
             
-            # p0 is the initial guess for the fitting coefficients
+            # p0 is the initial guess for the fit coefficients
             p0 = [in_A, in_C, in_x0, in_y0, in_z0, in_wx, in_wy, in_wz]
             
-            #try:
-            coeff, var_matrix = curve_fit(gauss_3D, xyz, data, p0=p0,bounds=bounds, absolute_sigma=True)
-            perr = np.sqrt(np.diag(var_matrix))
+            try:
+                coeff, var_matrix = curve_fit(gauss_3D, xyz, data, p0=p0,bounds=bounds, absolute_sigma=True)
+                perr = np.sqrt(np.diag(var_matrix))
                 
-         #   except RuntimeError:
-           #     print('Error - curve_fit failed')
-           #     coeff = np.empty(len(p0))                
-           #     perr  = np.empty(len(p0))
+            except RuntimeError:
+                print('Error - curve_fit failed')
+                coeff = np.empty(len(p0))                
+                perr  = np.empty(len(p0))
                 
-            fit_params_stack[trace_nr,:]=coeff
-            fit_errors_stack[trace_nr,:]=perr
+            fit_params_stack[trace_nr,:]= coeff
+            fit_errors_stack[trace_nr,:]= perr
             mask_size_stack[trace_nr,:] = mask_size
-            
-            
-        fit_params_all[:,:,stack_nr]=fit_params_stack 
-        fit_errors_all[:,:,stack_nr]=fit_errors_stack
-        mask_size_all[:,:,stack_nr] =mask_size_stack 
+                        
+        fit_params_all[stack_nr]= fit_params_stack
+        fit_errors_all[stack_nr]= fit_errors_stack
+        mask_size_all[stack_nr] = mask_size_stack
         
+### Transform Global to Local (sub-pixel) Coordinates
+    local_coords = list(range(0,num_stacks))
+    for stack_nr in range(0,num_stacks):
         
-### Transform Global to Local (sub-pixel) Coordinates 
-    
-    global_x,global_y,global_z            = fit_params_all[:,2,:],fit_params_all[:,3,:],fit_params_all[:,4,:]
-    mask_size_x, mask_size_y, mask_size_z = mask_size_all[:,0,:],mask_size_all[:,1,:],mask_size_all[:,2,:]
-    
-    centered_x = global_x-mask_size_x/2
-    centered_y = global_y-mask_size_y/2
-    centered_z = global_z-mask_size_z/2
-    
-    local_x,local_y,local_z = global_coords[:,0,:]+centered_x, global_coords[:,1,:]+centered_y, global_coords[:,2,:]+centered_z
-    local_coords = [local_x,local_y,local_z]
-
-    return local_coords, fit_params_all, fit_errors_all 
+        fit_x,fit_y,fit_z            = fit_params_all[stack_nr][:,2],fit_params_all[stack_nr][:,3],fit_params_all[stack_nr][:,4]
+        global_x,global_y,global_z   = global_coords[stack_nr][:,0],global_coords[stack_nr][:,1],global_coords[stack_nr][:,2]
+        mask_size_x, mask_size_y, mask_size_z = mask_size_all[stack_nr][:,0],mask_size_all[stack_nr][:,1],mask_size_all[stack_nr][:,2]
+        
+        centered_x = fit_x-mask_size_x/2
+        centered_y = fit_y-mask_size_y/2
+        centered_z = fit_z-mask_size_z/2
+        
+        local_x,local_y,local_z = global_x+centered_x, global_y+centered_y, global_z+centered_z
+        local_coords_temp  = np.swapaxes(np.array([local_x,local_y,local_z],order='C'),0,1)
+        local_coords[stack_nr] = local_coords_temp
+        
+    return local_coords, fit_params_all, fit_errors_all
