@@ -70,14 +70,22 @@ def get_stack(filepath,stack_nr):
 def write_xlsx_list(file_name,data_list,column_headers,column_indices):
     
     file_name = func.ChangeExtension(file_name,'.xlsx')
+    
+    
+    
     data=pd.DataFrame(data_list)
     num_stacks = len(data)
     num_param = np.shape(data[0][0])[1]    
-
-    book = load_workbook(file_name)
-    writer = pd.ExcelWriter(file_name, engine='openpyxl') 
-    writer.book = book
-    writer.sheets = dict((ws.title, ws) for ws in book.worksheets)        
+    
+    try: 
+        book = load_workbook(file_name)
+        writer = pd.ExcelWriter(file_name, engine='openpyxl') 
+        writer.book = book
+        writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
+        
+    except FileNotFoundError:
+        print('No .xlsx file found')        
+        writer = pd.ExcelWriter(file_name, engine='openpyxl') 
     
     for stack_nr in range(0,num_stacks):
         
