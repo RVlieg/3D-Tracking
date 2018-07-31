@@ -16,7 +16,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 #%% Build Stack from 2D slices 
 #Get file path 
-filepath = 'C:\\Measurement Data\\180712 - Non_fluorescent_fish_w_lips_and_Lips_on_glass\\data_007.bin'
+filepath = 'C:\\Users\\Redmar\\Desktop\\data_003.bin'
 
 #%% Get Global Peak Coordinates from the entire range of stacks in the file 
 
@@ -83,13 +83,13 @@ plt.xlabel('Fit Error [nm]')
 
 
 #%%
-A_fit = np.empty(600)
-for stack_nr in range(0,600):
+A_fit = np.empty(len(global_coords))
+for stack_nr in range(0,len(global_coords)):
     A_fit_temp=fit_params[stack_nr][0,0]
     A_fit[stack_nr]=A_fit_temp
     
-A_fit_err = np.empty(600)
-for stack_nr in range(0,600):
+A_fit_err = np.empty(len(global_coords))
+for stack_nr in range(0,len(global_coords)):
     A_fit_err_temp=fit_errors[stack_nr][0,0]
     A_fit_err[stack_nr]=A_fit_temp  
     
@@ -103,14 +103,14 @@ plt.plot(A_fit)
 #%% Nearest Neighbour Method 
 # Get trace from stack 1 
 
-stacks_sorted = list(range(0,len(local_coords)-1))
+stacks_sorted = list(range(0,len(local_coords)))
 stacks_sorted[0]=local_coords[0]
 
 num_stacks = len(local_coords)
 
 local_coords_temp = list(local_coords)
 
-for stack_nr in range(0,10):
+for stack_nr in range(0,len(global_coords)-1):
     coord_stack=np.array(local_coords[stack_nr+1])
     coord_stack_temp = np.array(local_coords[stack_nr+1])
     
@@ -143,12 +143,14 @@ for stack_nr in range(0,10):
 #%%
     
 plt.figure(4)
-for i in range(0,len(stacks_sorted)-1):
+plt.axes([0,500,0,500])
+for i in range(0,len(stacks_sorted)):
     try:
-        x,y,z = stacks_sorted[i][0,0],stacks_sorted[i][0,1],stacks_sorted[i][0,2]
+        x,y,z = stacks_sorted[i][10,0],stacks_sorted[i][10,1],stacks_sorted[i][10,2]
         fig = plt.figure(4) 
         ax = fig.gca(projection='3d')
         ax.scatter(x,y,z,zdir='z')
+        
         
     except IndexError:
         print(':-(')
