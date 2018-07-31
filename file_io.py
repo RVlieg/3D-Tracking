@@ -6,6 +6,8 @@ Created on Tue Jun 26 14:37:47 2018
 """
 import numpy as np
 import functions as func
+import pandas as pd
+from openpyxl import load_workbook
 
 #%%
 def read_logfile(path_logfile):
@@ -61,5 +63,30 @@ def get_stack(filepath,stack_nr):
         stack[:,:,slice_nr-stack_nr*zsteps]=read_bin(filepath,slice_nr)
     
     return stack 
+
+
+#%% Write List formatted Data to an .xlsx file 
+ 
+def write_xlsx_list(file_name,data_list,column_headers,column_indices):
+    
+    file_name = func.ChangeExtension(file_name,'.xlsx')
+    data=pd.DataFrame(data_list)
+    num_stacks = len(data)
+    num_param = np.shape(data[0][0])[1]    
+
+    book = load_workbook(file_name)
+    writer = pd.ExcelWriter(file_name, engine='openpyxl') 
+    writer.book = book
+    writer.sheets = dict((ws.title, ws) for ws in book.worksheets)        
+    
+    for stack_nr in range(0,num_stacks):
         
+        for column_nr in range(0,num_param):
+            column_index = column_indices[column_nr]
+            header = column_headers[column_nr]
+            data_param = pd.DataFrame({header: data[0][stack_nr][:,column_nr]})
+            data_param.to_excel(writer,sheet_name='Sheet'+str(stack_nr),startcol=column_index,index=False)
+            
+    writer.save()
+    
 

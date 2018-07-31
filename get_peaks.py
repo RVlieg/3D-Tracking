@@ -9,6 +9,8 @@ import numpy as np
 import functions as func
 import file_io as file_io
 import matplotlib.pyplot as plt
+import pandas as pd
+
 from scipy.optimize import curve_fit
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -25,12 +27,20 @@ max_num_peaks = 0
 global_coords, num_traces = func.get_global_coords(filepath,threshold_factor,mask_size,max_num_peaks)
 print(num_traces)
 
-#%% Get Local Peak Coordinates by Fitting 3D Gaussian
 
+#%% Write Global coordinates (= list) to .xlsx file    
+file_io.write_xlsx_list(filepath,global_coords,['x [pix]','y [pix]','z [pix]'],[0,1,2])
+
+#%% Get Local Peak Coordinates by Fitting 3D Gaussian
 mask_size = [11,11,17]
 
 # Local Coords dims=[stack_nr][trace_nr,parameter]
 local_coords, fit_params, fit_errors = func.get_local_coords(filepath,global_coords,mask_size)
+
+#%% Write the output of the 3D Gaussian fit to .xlsx file
+file_io.write_xlsx_list(filepath,local_coords,['x_local [pix]','y_local [pix]','z_local [pix]'],[3,4,5])
+file_io.write_xlsx_list(filepath,fit_params,['A [a.u]','C [a.u.]','x0 [pix]','y0 [pix]','z0 [pix]','wx [pix]','wy [pix]','wz [pix]'],[6,7,8,9,10,11,12,13])
+file_io.write_xlsx_list(filepath,fit_errors,['A_err [a.u]','C_err [a.u.]','x_err [pix]','y0_err [pix]','z0_err [pix]','wx_err [pix]','wy_err [pix]','wz_err [pix]'],[14,15,16,17,18,19,20,21])
 
 #%%
 #x_loc = np.ndarray.flatten(x_loc)*0.260
@@ -72,7 +82,6 @@ plt.tight_layout()
 plt.xlabel('Fit Error [nm]')
 
 
-
 #%%
 A_fit = np.empty(600)
 for stack_nr in range(0,600):
@@ -91,7 +100,6 @@ plt.subplot(1,2,1)
 plt.plot(A_fit)
 
 
-
 #%% Nearest Neighbour Method 
 # Get trace from stack 1 
 
@@ -102,29 +110,30 @@ num_stacks = len(local_coords)
 
 local_coords_temp = list(local_coords)
 
-for stack_nr in range(0,num_stacks-1):
-    coord_stack=np.array(stacks_sorted[stack_nr])
-    coord_stack_temp = np.array(stacks_sorted[stack_nr])
+for stack_nr in range(0,num_stacks):
+    coord_stack=np.array(local_coords[stack_nr+1])
+    coord_stack_temp = np.array(local_coords[stack_nr+1])
     
     num_traces = len(local_coords[stack_nr])
+    
     if len(coord_stack) < num_traces:
         num_traces = len(coord_stack)
-                
+ 
     stack_sorted = np.empty([num_traces,3])
 
     for trace_nr in range(0,num_traces):
-        coord_trace=local_coords[stack_nr][trace_nr]
-        r_all = np.sqrt((coord_trace[0]-coord_stack[:,0])**2+(coord_trace[1]-coord_stack[:,1])**2+(coord_trace[2]-coord_stack[:,2])**2)
+        coord_trace = stacks_sorted[stack_nr][trace_nr,:]
+        r_all = np.sqrt((coord_trace[0]-coord_stack_temp[:,0])**2+(coord_trace[1]-coord_stack_temp[:,1])**2+(coord_trace[2]-coord_stack_temp[:,2])**2)
         
         if len(r_all) is 0:
             continue
         
         else:
-            r_min,indices_min = func.get_min(r_all)
-            stack_sorted[trace_nr] = coord_stack[indices_min]
-            coord_stack_temp[trace_nr] = np.inf
+            r_min, indices_min = func.get_min(r_all)
+            stack_sorted[trace_nr,:] = coord_stack[indices_min,:]
+            coord_stack_temp[trace_nr,:] = np.inf
     
-    stacks_sorted[stack_nr] = stack_sorted
+    stacks_sorted[stack_nr+1] = stack_sorted
     
     
 #%%
@@ -140,4 +149,3 @@ for i in range(0,len(stacks_sorted)-1):
     except IndexError:
         print(':-(')
         
-            
