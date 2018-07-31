@@ -110,11 +110,11 @@ num_stacks = len(local_coords)
 
 local_coords_temp = list(local_coords)
 
-for stack_nr in range(0,num_stacks):
+for stack_nr in range(0,10):
     coord_stack=np.array(local_coords[stack_nr+1])
     coord_stack_temp = np.array(local_coords[stack_nr+1])
     
-    num_traces = len(local_coords[stack_nr])
+    num_traces = len(stacks_sorted[stack_nr])
     
     if len(coord_stack) < num_traces:
         num_traces = len(coord_stack)
@@ -126,13 +126,17 @@ for stack_nr in range(0,num_stacks):
         r_all = np.sqrt((coord_trace[0]-coord_stack_temp[:,0])**2+(coord_trace[1]-coord_stack_temp[:,1])**2+(coord_trace[2]-coord_stack_temp[:,2])**2)
         
         if len(r_all) is 0:
-            continue
+            stack_sorted = np.empty([num_traces,3])
         
         else:
             r_min, indices_min = func.get_min(r_all)
-            stack_sorted[trace_nr,:] = coord_stack[indices_min,:]
-            coord_stack_temp[trace_nr,:] = np.inf
-    
+            selected_trace = coord_stack_temp[indices_min]
+            stack_sorted[trace_nr] = selected_trace
+            coord_stack_temp[trace_nr] = np.inf
+            
+    if len(coord_stack) > num_traces:
+        stack_sorted = np.append(stack_sorted,coord_stack[num_traces+1::],0)
+
     stacks_sorted[stack_nr+1] = stack_sorted
     
     
