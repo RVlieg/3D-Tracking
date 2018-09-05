@@ -10,13 +10,15 @@ import functions as func
 import file_io as file_io
 import matplotlib.pyplot as plt
 import pandas as pd
+import func_plot as func_plot
+
 
 from scipy.optimize import curve_fit
 from mpl_toolkits.mplot3d import Axes3D
 
 #%% Build Stack from 2D slices 
 #Get file path 
-filepath = 'C:\\Users\\Redmar\\Desktop\\data_003.bin'
+filepath = file_io.get_filepath()
 
 #%% Get Global Peak Coordinates from the entire range of stacks in the file 
 
@@ -42,66 +44,11 @@ file_io.write_xlsx_list(filepath,local_coords,['x_local [pix]','y_local [pix]','
 file_io.write_xlsx_list(filepath,fit_params,['A [a.u]','C [a.u.]','x0 [pix]','y0 [pix]','z0 [pix]','wx [pix]','wy [pix]','wz [pix]'],[6,7,8,9,10,11,12,13])
 file_io.write_xlsx_list(filepath,fit_errors,['A_err [a.u]','C_err [a.u.]','x_err [pix]','y0_err [pix]','z0_err [pix]','wx_err [pix]','wy_err [pix]','wz_err [pix]'],[14,15,16,17,18,19,20,21])
 
-#%%
-#x_loc = np.ndarray.flatten(x_loc)*0.260
-#y_loc = np.ndarray.flatten(y_loc)*0.260
-#z_loc = np.ndarray.flatten(z_loc)*0.250
-
-num_stacks = len(local_coords)
-for stack_nr in range(0,num_stacks):
-    
-    x_loc = local_coords[stack_nr][:,0]
-    y_loc = local_coords[stack_nr][:,1]
-    z_loc = local_coords[stack_nr][:,2]
-
-    fig = plt.figure(1) 
-    ax = fig.gca(projection='3d')
-    ax.scatter(x_loc,y_loc,z_loc,zdir='z')
-
-plt.axis([0,512,0,512])
-plt.xlabel('X-Coordinate [pix]')
-plt.ylabel('Y-Coorindate [pix]')
-
-plt.figure(2)
-plt.title('Fit Errors')
-fit_err_x = np.ndarray.flatten(fit_errors[0][:,2])*260
-fit_err_y = np.ndarray.flatten(fit_errors[0][:,3])*260
-fit_err_z = np.ndarray.flatten(fit_errors[0][:,4])*250
-
-plt.subplot(3,1,1)
-plt.title('X-Coordinate')
-plt.hist(fit_err_x,50,[0,10])
-plt.subplot(3,1,2)
-plt.title('Y-Coordinate')
-plt.hist(fit_err_y,50,[0,10])
-plt.subplot(3,1,3)
-plt.title('Z-Coordinate')
-plt.hist(fit_err_z,50,[0,10])
-plt.tight_layout()
-
-plt.xlabel('Fit Error [nm]')
-
-
-#%%
-A_fit = np.empty(len(global_coords))
-for stack_nr in range(0,len(global_coords)):
-    A_fit_temp=fit_params[stack_nr][0,0]
-    A_fit[stack_nr]=A_fit_temp
-    
-A_fit_err = np.empty(len(global_coords))
-for stack_nr in range(0,len(global_coords)):
-    A_fit_err_temp=fit_errors[stack_nr][0,0]
-    A_fit_err[stack_nr]=A_fit_temp  
-    
-plt.figure(3)
-plt.subplot(1,2,2)
-plt.hist(A_fit_err)
-plt.subplot(1,2,1)
-plt.plot(A_fit)
-
 
 #%% Nearest Neighbour Method 
-# Get trace from stack 1 
+
+# Sort Stacks to get correct trace numbers per trace based on nearest distance (r) 
+
 
 stacks_sorted = list(range(0,len(local_coords)))
 stacks_sorted[0]=local_coords[0]
@@ -109,49 +56,81 @@ stacks_sorted[0]=local_coords[0]
 num_stacks = len(local_coords)
 
 local_coords_temp = list(local_coords)
+trace_nrs = list(range(0,len(local_coords)))
+
+trace_nrs[0]=np.arange(0,np.shape(local_coords[0])[0])
+r_all_stacks = list(range(0,len(local_coords)))
+r_all_stacks[0] = np.empty([len(local_coords[0]),len(local_coords[0])])
 
 for stack_nr in range(0,len(global_coords)-1):
-    coord_stack=np.array(local_coords[stack_nr+1])
+#for stack_nr in range(0,3):
+    #Allocate memory for coordinates of second stack 
+    stack2=np.array(local_coords[stack_nr+1])
+    
+    
+    #Make temporary copy so values can be edited during iteration
     coord_stack_temp = np.array(local_coords[stack_nr+1])
     
-    num_traces = len(stacks_sorted[stack_nr])
+    num_traces = len(local_coords[stack_nr])
     
-    if len(coord_stack) < num_traces:
-        num_traces = len(coord_stack)
- 
-    stack_sorted = np.empty([num_traces,3])
+    #Allocate memory for all the sorted trace numbers and distances (r)
+    trace_nrs[stack_nr+1] = np.empty(len(stack2),dtype=np.int)
+    r_all_stacks[stack_nr+1] = np.empty([len(stack2),len(stack2)])
 
+    
+    if len(stack2) < len(local_coords[stack_nr]):
+        num_traces = len(stack2)
+
+    stack_sorted = np.empty([num_traces,3])
+    
+    
     for trace_nr in range(0,num_traces):
-        coord_trace = stacks_sorted[stack_nr][trace_nr,:]
-        r_all = np.sqrt((coord_trace[0]-coord_stack_temp[:,0])**2+(coord_trace[1]-coord_stack_temp[:,1])**2+(coord_trace[2]-coord_stack_temp[:,2])**2)
+        
+        #coord_trace = Trace from first stack which is compared with second stack 
+        stack1_trace = local_coords[stack_nr][trace_nr,:]
+        
+        r_all = np.sqrt((stack1_trace[0]-coord_stack_temp[:,0])**2+(stack1_trace[1]-coord_stack_temp[:,1])**2+(stack1_trace[2]-coord_stack_temp[:,2])**2)
+        r_all_stacks[stack_nr+1][:,trace_nr] = r_all
         
         if len(r_all) is 0:
             stack_sorted = np.empty([num_traces,3])
         
         else:
+            #Get minimum r-value and corresponding index of second stack 
             r_min, indices_min = func.get_min(r_all)
-            selected_trace = coord_stack_temp[indices_min]
-            stack_sorted[trace_nr] = selected_trace
-            coord_stack_temp[trace_nr] = np.inf
             
-    if len(coord_stack) > num_traces:
-        stack_sorted = np.append(stack_sorted,coord_stack[num_traces+1::],0)
-
+            #Sort matched trace of stack2 to same index as stack1 
+            trace_couple = stack2[indices_min]
+            stack_sorted[trace_nr] = trace_couple
+            coord_stack_temp[indices_min] = np.inf
+            
+            #Link the found index_rmin to the corresponding trace in stack2
+            trace_nr_rmin = trace_nrs[stack_nr][trace_nr]
+            trace_nrs[stack_nr+1][indices_min] = trace_nr_rmin
+            
+        #When length of stack2 is larger than stack1, append numbers starting from max(index_number_stack1) after all iterations
+        if trace_nr == num_traces-1 and len(stack2) > len(local_coords[stack_nr]):
+            for i in range(0,len(trace_nrs[stack_nr+1])):
+                if trace_nrs[i,:] not []:
+                    
+        
+            #trace_nrs[stack_nr+1][trace_nr+1::] = [max(trace_nrs[stack_nr])+1:len(stack_nr+1)]       
+            
+        #When length of stack2 is  than stack1, append numbers starting from max(index_number_stack1) after all iterations
+        #elif trace_nr == num_traces-1 and len(stack2) < len(local_coords[stack_nr]):
+         #   trace_nrs[stack_nr+1][trace_nr+1::]=np.arange(max(trace_nrs[stack_nr])+1,len(trace_nrs[stack_nr+1]))
+            
+    # Attach all left-over coordinates to the sorted stack when stack2 is larger than stack1  
+    if len(stack2) > num_traces:
+        stack_sorted = np.append(stack_sorted,stack2[num_traces+1::],0) 
+        
     stacks_sorted[stack_nr+1] = stack_sorted
-    
-    
-#%%
-    
-plt.figure(4)
-plt.axes([0,500,0,500])
-for i in range(0,len(stacks_sorted)):
-    try:
-        x,y,z = stacks_sorted[i][10,0],stacks_sorted[i][10,1],stacks_sorted[i][10,2]
-        fig = plt.figure(4) 
-        ax = fig.gca(projection='3d')
-        ax.scatter(x,y,z,zdir='z')
-        
-        
-    except IndexError:
-        print(':-(')
-        
+
+
+
+#%% Plot Data
+
+func_plot.plot_hist_errs(fit_errors,1,filepath)
+
+
+

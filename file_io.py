@@ -8,6 +8,8 @@ import numpy as np
 import functions as func
 import pandas as pd
 from openpyxl import load_workbook
+import tkinter as tk
+from tkinter import filedialog
 
 #%%
 def read_logfile(path_logfile):
@@ -66,13 +68,10 @@ def get_stack(filepath,stack_nr):
 
 
 #%% Write List formatted Data to an .xlsx file 
- 
 def write_xlsx_list(file_name,data_list,column_headers,column_indices):
     
     file_name = func.ChangeExtension(file_name,'.xlsx')
-    
-    
-    
+   
     data=pd.DataFrame(data_list)
     num_stacks = len(data)
     num_param = np.shape(data[0][0])[1]    
@@ -87,8 +86,7 @@ def write_xlsx_list(file_name,data_list,column_headers,column_indices):
         print('No .xlsx file found')        
         writer = pd.ExcelWriter(file_name, engine='openpyxl') 
     
-    for stack_nr in range(0,num_stacks):
-        
+    for stack_nr in range(0,num_stacks):        
         for column_nr in range(0,num_param):
             column_index = column_indices[column_nr]
             header = column_headers[column_nr]
@@ -97,4 +95,13 @@ def write_xlsx_list(file_name,data_list,column_headers,column_indices):
             
     writer.save()
     
+#%% Open Dialoge box to get Filepath
+    
+def get_filepath():
+    root = tk.Tk()
+    root.withdraw()
 
+    filename = filedialog.askopenfilename()
+    filename = filename.replace('/','\\')
+    return filename
+    

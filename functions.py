@@ -351,7 +351,8 @@ def get_local_coords(filepath,global_coords,mask_size):
             fit_params_stack[trace_nr,:]= coeff
             fit_errors_stack[trace_nr,:]= perr
             mask_size_stack[trace_nr,:] = mask_size
-                        
+
+            
         fit_params_all[stack_nr]= fit_params_stack
         fit_errors_all[stack_nr]= fit_errors_stack
         mask_size_all[stack_nr] = mask_size_stack
